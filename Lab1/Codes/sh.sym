@@ -1,12 +1,12 @@
 00000000 sh.c
-000019a0 buf.0
+000019c0 buf.0
 00000000 ulib.c
 00000000 printf.c
 00000ec0 printint
-000013b0 digits.0
+000013d4 digits.0
 00000000 umalloc.c
-00001a04 freep
-00001a08 base
+00001a24 freep
+00001a28 base
 00000bd0 strcpy
 00000f60 printf
 00000de0 memmove
@@ -22,7 +22,7 @@
 00000470 gettoken
 00001180 malloc
 00000ea3 sleep
-00001980 whitespace
+000019a4 whitespace
 00000190 fork1
 00000ac0 nulterminate
 00000e23 pipe
@@ -36,7 +36,7 @@
 00000a30 parseblock
 00000e4b exec
 00000e1b wait
-00001978 symbols
+0000199c symbols
 00000e2b read
 000007a0 parseexec
 00000e63 unlink
@@ -44,7 +44,7 @@
 00000e0b fork
 00000e9b sbrk
 00000eab uptime
-000019a0 __bss_start
+000019c0 __bss_start
 00000c90 memset
 00000000 main
 00000c00 strcmp
@@ -52,8 +52,8 @@
 000003c0 pipecmd
 00000370 redircmd
 00000d50 stat
-00001986 _edata
-00001a10 _end
+000019aa _edata
+00001a30 _end
 00000e73 link
 00000e13 exit
 00000da0 atoi
