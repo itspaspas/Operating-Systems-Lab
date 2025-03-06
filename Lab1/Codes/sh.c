@@ -13,6 +13,8 @@
 
 #define MAXARGS 10
 
+char whitespace[] = " \t\r\n\v";
+
 struct cmd {
   int type;
 };
@@ -130,14 +132,18 @@ runcmd(struct cmd *cmd)
   exit();
 }
 
+
 int
 getcmd(char *buf, int nbuf)
 {
-  printf(2, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
+  printf(1, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
+
   if(buf[0] == 0) // EOF
     return -1;
+    
+
   return 0;
 }
 
@@ -157,6 +163,7 @@ main(void)
 
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
+
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
@@ -164,8 +171,10 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+
     if(fork1() == 0)
       runcmd(parsecmd(buf));
+
     wait();
   }
   exit();
@@ -259,7 +268,7 @@ backcmd(struct cmd *subcmd)
 //PAGEBREAK!
 // Parsing
 
-char whitespace[] = " \t\r\n\v";
+
 char symbols[] = "<|>&;()";
 
 int
@@ -331,12 +340,16 @@ parsecmd(char *s)
   struct cmd *cmd;
 
   es = s + strlen(s);
+  
   cmd = parseline(&s, es);
+
   peek(&s, es, "");
+
   if(s != es){
     printf(2, "leftovers: %s\n", s);
     panic("syntax");
   }
+
   nulterminate(cmd);
   return cmd;
 }
@@ -347,14 +360,17 @@ parseline(char **ps, char *es)
   struct cmd *cmd;
 
   cmd = parsepipe(ps, es);
+
   while(peek(ps, es, "&")){
     gettoken(ps, es, 0, 0);
     cmd = backcmd(cmd);
   }
+
   if(peek(ps, es, ";")){
     gettoken(ps, es, 0, 0);
     cmd = listcmd(cmd, parseline(ps, es));
   }
+
   return cmd;
 }
 
@@ -364,6 +380,7 @@ parsepipe(char **ps, char *es)
   struct cmd *cmd;
 
   cmd = parseexec(ps, es);
+
   if(peek(ps, es, "|")){
     gettoken(ps, es, 0, 0);
     cmd = pipecmd(cmd, parsepipe(ps, es));
@@ -428,6 +445,7 @@ parseexec(char **ps, char *es)
 
   argc = 0;
   ret = parseredirs(ret, ps, es);
+
   while(!peek(ps, es, "|)&;")){
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
@@ -491,3 +509,5 @@ nulterminate(struct cmd *cmd)
   }
   return cmd;
 }
+
+

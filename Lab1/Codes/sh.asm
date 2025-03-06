@@ -38,11 +38,11 @@ main(void)
       35:	79 e1                	jns    18 <main+0x18>
       37:	eb 2e                	jmp    67 <main+0x67>
       39:	8d b4 26 00 00 00 00 	lea    0x0(%esi,%eiz,1),%esi
-    }
   }
 
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
+
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       40:	80 3d c2 19 00 00 20 	cmpb   $0x20,0x19c2
       47:	0f 84 8d 00 00 00    	je     da <main+0xda>
@@ -62,10 +62,10 @@ fork1(void)
       60:	74 63                	je     c5 <main+0xc5>
     wait();
       62:	e8 b4 0d 00 00       	call   e1b <wait>
-  printf(2, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
+  printf(1, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
       67:	83 ec 08             	sub    $0x8,%esp
       6a:	68 68 12 00 00       	push   $0x1268
-      6f:	6a 02                	push   $0x2
+      6f:	6a 01                	push   $0x1
       71:	e8 ea 0e 00 00       	call   f60 <printf>
   memset(buf, 0, nbuf);
       76:	83 c4 0c             	add    $0xc,%esp
@@ -141,10 +141,10 @@ fork1(void)
      134:	53                   	push   %ebx
      135:	8b 5d 08             	mov    0x8(%ebp),%ebx
      138:	8b 75 0c             	mov    0xc(%ebp),%esi
-  printf(2, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
+  printf(1, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
      13b:	83 ec 08             	sub    $0x8,%esp
      13e:	68 68 12 00 00       	push   $0x1268
-     143:	6a 02                	push   $0x2
+     143:	6a 01                	push   $0x1
      145:	e8 16 0e 00 00       	call   f60 <printf>
   memset(buf, 0, nbuf);
      14a:	83 c4 0c             	add    $0xc,%esp
@@ -575,7 +575,7 @@ backcmd(struct cmd *subcmd)
      46f:	c3                   	ret
 
 00000470 <gettoken>:
-char whitespace[] = " \t\r\n\v";
+
 char symbols[] = "<|>&;()";
 
 int
@@ -1063,6 +1063,7 @@ parseexec(char **ps, char *es)
      7ef:	53                   	push   %ebx
      7f0:	50                   	push   %eax
      7f1:	e8 6a fe ff ff       	call   660 <parseredirs>
+
   while(!peek(ps, es, "|)&;")){
      7f6:	83 c4 10             	add    $0x10,%esp
   ret = parseredirs(ret, ps, es);

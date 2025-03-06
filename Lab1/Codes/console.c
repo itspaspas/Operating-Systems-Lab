@@ -15,6 +15,14 @@
 #include "proc.h"
 #include "x86.h"
 
+#define INPUT_BUF 128
+struct {
+  char buf[INPUT_BUF];
+  uint r;  // Read index
+  uint w;  // Write index
+  uint e;  // Edit index
+} input;
+
 static void consputc(int);
 
 static int panicked = 0;
@@ -66,14 +74,19 @@ cprintf(char *fmt, ...)
     panic("null fmt");
 
   argp = (uint*)(void*)(&fmt + 1);
+
   for(i = 0; (c = fmt[i] & 0xff) != 0; i++){
+
     if(c != '%'){
       consputc(c);
       continue;
     }
+
     c = fmt[++i] & 0xff;
+
     if(c == 0)
       break;
+
     switch(c){
     case 'd':
       printint(*argp++, 10, 1);
@@ -102,6 +115,7 @@ cprintf(char *fmt, ...)
   if(locking)
     release(&cons.lock);
 }
+
 
 void
 panic(char *s)
@@ -139,12 +153,17 @@ cgaputc(int c)
   outb(CRTPORT, 15);
   pos |= inb(CRTPORT+1);
 
-  if(c == '\n')
-    pos += 80 - pos%80;
+  if(c == '\n'){
+    if (input.buf[input.r % INPUT_BUF] != '!') {
+      // Only move to the next line if the first character is not '!'
+      pos += 80 - pos % 80;  // Move to the next line.
+    }
+  }
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
-  } else
+  } else {
     crt[pos++] = (c&0xff) | 0x0700;  // black on white
+  }
 
   if(pos < 0 || pos > 25*80)
     panic("pos under/overflow");
@@ -160,31 +179,30 @@ cgaputc(int c)
   outb(CRTPORT, 15);
   outb(CRTPORT+1, pos);
   crt[pos] = ' ' | 0x0700;
+
 }
 
-void
-consputc(int c)
+
+void consputc(int c)
 {
-  if(panicked){
+  if (panicked) {
     cli();
-    for(;;)
-      ;
+    for (;;) ;
   }
 
-  if(c == BACKSPACE){
-    uartputc('\b'); uartputc(' '); uartputc('\b');
-  } else
+  if (c == BACKSPACE) {
+    uartputc('\b');
+    uartputc(' ');
+    uartputc('\b');
+    cgaputc(c);
+  } else {
     uartputc(c);
-  cgaputc(c);
+    cgaputc(c);
+  }
 }
 
-#define INPUT_BUF 128
-struct {
-  char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-} input;
+
+
 
 #define C(x)  ((x)-'@')  // Control-x
 
@@ -194,8 +212,11 @@ consoleintr(int (*getc)(void))
   int c, doprocdump = 0;
 
   acquire(&cons.lock);
+
   while((c = getc()) >= 0){
+
     switch(c){
+
     case C('P'):  // Process listing.
       // procdump() locks cons.lock indirectly; invoke later
       doprocdump = 1;
@@ -219,8 +240,16 @@ consoleintr(int (*getc)(void))
         input.buf[input.e++ % INPUT_BUF] = c;
         consputc(c);
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
-          input.w = input.e;
-          wakeup(&input.r);
+          if (input.buf[input.r % INPUT_BUF] == '!') {
+            while (input.e != input.r) {
+              input.e--;
+              consputc(BACKSPACE);
+            }
+            consputc(' ');
+          } else {
+            input.w = input.e;
+            wakeup(&input.r);
+          }
         }
       }
       break;
@@ -241,16 +270,22 @@ consoleread(struct inode *ip, char *dst, int n)
   iunlock(ip);
   target = n;
   acquire(&cons.lock);
+
   while(n > 0){
+
     while(input.r == input.w){
+
       if(myproc()->killed){
         release(&cons.lock);
         ilock(ip);
         return -1;
       }
       sleep(&input.r, &cons.lock);
+
     }
+
     c = input.buf[input.r++ % INPUT_BUF];
+
     if(c == C('D')){  // EOF
       if(n < target){
         // Save ^D for next time, to make sure
@@ -264,6 +299,7 @@ consoleread(struct inode *ip, char *dst, int n)
     if(c == '\n')
       break;
   }
+  
   release(&cons.lock);
   ilock(ip);
 

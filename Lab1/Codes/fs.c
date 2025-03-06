@@ -183,6 +183,8 @@ iinit(int dev)
  inodestart %d bmap start %d\n", sb.size, sb.nblocks,
           sb.ninodes, sb.nlog, sb.logstart, sb.inodestart,
           sb.bmapstart);
+
+  cprintf("\nMajid Sadeghinejad\nParsa Ahmadi Nav\nAria Azem\n\n");
 }
 
 static struct inode* iget(uint dev, uint inum);
