@@ -136,7 +136,7 @@ runcmd(struct cmd *cmd)
 int
 getcmd(char *buf, int nbuf)
 {
-  printf(1, "majid-sadeghi|parsa-ahmadi|aria-azem $ ");
+  printf(1, "majid-sadeghinejad|parsa-ahmadi|aria-azem $ ");
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
 
@@ -145,6 +145,80 @@ getcmd(char *buf, int nbuf)
     
 
   return 0;
+}
+
+char* process_input(char* buf) {
+  
+  static char cleaned_input[100];
+  int i = 1, j = 0;
+  int in_hash_block = 0;
+  
+  while (buf[i] != '\n') {
+    if (buf[i] == '#') {
+      in_hash_block = !in_hash_block;
+      i++;
+      continue;
+    }
+      
+    if (!in_hash_block)
+      cleaned_input[j++] = buf[i];
+
+    i++;
+  }
+
+  return cleaned_input;
+}
+
+char *keywords[] = {"return", "while", "for", "if", "char", "int", "void"};
+#define NUM_KEYWORDS (sizeof(keywords) / sizeof(keywords[0]))
+
+void color_print(char* text){
+  char temp[2] ;
+  temp[0] = '\5';
+  temp[1] = '\0';
+  printf(1, "%s", temp);
+  printf(1,"%s",text);
+  printf(1,"%s",temp);
+}
+
+void print_special(char* cleaned_string) {
+
+  int j = 0, keyword_found;
+  char temp_word[100]; 
+
+  for (int i=0 ; i < strlen(cleaned_string) ; i++) {
+      
+    if ((cleaned_string[i] >= 'a' && cleaned_string[i] <= 'z') || (cleaned_string[i] >= 'A' && cleaned_string[i] <= 'Z') || cleaned_string[i] == '_') {
+      j = 0;
+      while ((cleaned_string[i] >= 'a' && cleaned_string[i] <= 'z') || (cleaned_string[i] >= 'A' && cleaned_string[i] <= 'Z') || cleaned_string[i] == '_') {
+        temp_word[j++] = cleaned_string[i++];
+      }
+      temp_word[j] = '\0';
+      i--;
+          
+      keyword_found = 0;
+      for (int k = 0; k < NUM_KEYWORDS; k++) {
+        if (strcmp(temp_word, keywords[k]) == 0) {
+          keyword_found = 1;
+          color_print(keywords[k]);
+          break;
+        }
+      }
+          
+      if (!keyword_found) {
+        printf(1,"%s",temp_word);
+        // for (int k = 0; temp_word[k] != '\0'; k++) {
+        //   colorconsputc(temp_word[k]);        
+        // }
+      }
+
+    } else {
+      char temp[2];
+      temp[0] = cleaned_string[i];
+      temp[1] = '\0';
+      printf(1,"%s", temp);
+    }
+  }
 }
 
 int
@@ -171,6 +245,14 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+
+    if(buf[0] == '!')
+    {
+      print_special(process_input(buf));
+      printf(1,"\n");
+      continue;
+    }
+    
 
     if(fork1() == 0)
       runcmd(parsecmd(buf));

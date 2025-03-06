@@ -22,6 +22,7 @@ main(void)
   for(;;){
 
     printf(2, "init: starting sh\n");
+    printf(1,"\nMajid Sadeghinejad\nParsa Ahmadi\nAria Azem\n\n");
     pid = fork();
 
     if(pid < 0){

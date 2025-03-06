@@ -16,12 +16,7 @@
 #include "x86.h"
 
 #define INPUT_BUF 128
-struct {
-  char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-} input;
+
 
 static void consputc(int);
 
@@ -142,6 +137,16 @@ panic(char *s)
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
+struct {
+  char buf[INPUT_BUF];
+  uint r;  // Read index
+  uint w;  // Write index
+  uint e;  // Edit index
+} input;
+
+static int attribute = 0x0700;
+static int stat = 0 ;
+
 static void
 cgaputc(int c)
 {
@@ -154,15 +159,12 @@ cgaputc(int c)
   pos |= inb(CRTPORT+1);
 
   if(c == '\n'){
-    if (input.buf[input.r % INPUT_BUF] != '!') {
-      // Only move to the next line if the first character is not '!'
       pos += 80 - pos % 80;  // Move to the next line.
-    }
   }
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
   } else {
-    crt[pos++] = (c&0xff) | 0x0700;  // black on white
+    crt[pos++] = (c&0xff) | attribute;
   }
 
   if(pos < 0 || pos > 25*80)
@@ -182,9 +184,19 @@ cgaputc(int c)
 
 }
 
-
 void consputc(int c)
 {
+  if (c == '\5') {
+    if (!stat) {
+      stat = 1 ;
+      attribute = 0x7100 ;
+    } else {
+      stat = 0 ;
+      attribute = 0x0700;
+    }
+    return;
+  }
+  
   if (panicked) {
     cli();
     for (;;) ;
@@ -200,7 +212,6 @@ void consputc(int c)
     cgaputc(c);
   }
 }
-
 
 
 
@@ -223,7 +234,7 @@ consoleintr(int (*getc)(void))
       break;
     case C('U'):  // Kill line.
       while(input.e != input.w &&
-            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+            input.buf[(input.e) % INPUT_BUF] != '\n'){
         input.e--;
         consputc(BACKSPACE);
       }
@@ -239,17 +250,10 @@ consoleintr(int (*getc)(void))
         c = (c == '\r') ? '\n' : c;
         input.buf[input.e++ % INPUT_BUF] = c;
         consputc(c);
+
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
-          if (input.buf[input.r % INPUT_BUF] == '!') {
-            while (input.e != input.r) {
-              input.e--;
-              consputc(BACKSPACE);
-            }
-            consputc(' ');
-          } else {
-            input.w = input.e;
-            wakeup(&input.r);
-          }
+          input.w = input.e;
+          wakeup(&input.r);
         }
       }
       break;
@@ -313,8 +317,9 @@ consolewrite(struct inode *ip, char *buf, int n)
 
   iunlock(ip);
   acquire(&cons.lock);
-  for(i = 0; i < n; i++)
+  for(i = 0; i < n; i++){
     consputc(buf[i] & 0xff);
+  }
   release(&cons.lock);
   ilock(ip);
 
