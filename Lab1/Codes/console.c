@@ -187,6 +187,7 @@ cgaputc(int c)
 void consputc(int c)
 {
   if (c == '\5') {
+    // input.e-- ;
     if (!stat) {
       stat = 1 ;
       attribute = 0x7100 ;
@@ -213,55 +214,114 @@ void consputc(int c)
   }
 }
 
+#define C(x)  ((x)-'@')  // Control-x 
+static char selected_buffer[INPUT_BUF];
+static char reversed_buffer[INPUT_BUF];
+uint select_in ;
+uint select_e ;
+int copy_mode = 0 ;
+
+void reverse_buff(){
+  for (int i = 0; i < select_in; i++)
+  {
+    reversed_buffer[i] = selected_buffer[select_in-1-i];
+  }
+  reversed_buffer[select_in] = '\0';
+  
+}
 
 
-#define C(x)  ((x)-'@')  // Control-x
-
-void
-consoleintr(int (*getc)(void))
-{
+void consoleintr(int (*getc)(void)) {
   int c, doprocdump = 0;
 
   acquire(&cons.lock);
 
-  while((c = getc()) >= 0){
+  while ((c = getc()) >= 0) {
+    switch (c) {
+      case C('P'):  // Process listing.
+        doprocdump = 1;
+        break;
 
-    switch(c){
-
-    case C('P'):  // Process listing.
-      // procdump() locks cons.lock indirectly; invoke later
-      doprocdump = 1;
-      break;
-    case C('U'):  // Kill line.
-      while(input.e != input.w &&
-            input.buf[(input.e) % INPUT_BUF] != '\n'){
-        input.e--;
-        consputc(BACKSPACE);
-      }
-      break;
-    case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
-        input.e--;
-        consputc(BACKSPACE);
-      }
-      break;
-    default:
-      if(c != 0 && input.e-input.r < INPUT_BUF){
-        c = (c == '\r') ? '\n' : c;
-        input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
-
-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
-          input.w = input.e;
-          wakeup(&input.r);
+      case C('U'):  // Kill line.
+        while (input.e != input.w && input.buf[(input.e) % INPUT_BUF] != '\n') {
+          input.e--;
+          select_e = input.e ;
+          consputc(BACKSPACE);
         }
-      }
-      break;
+        break;
+
+      // case C('H'): case '\x7f':  // Backspace
+      //   if (input.e != input.w) {
+      //     input.e--;
+      //     select_e = input.e ;
+      //     consputc(BACKSPACE);
+      //   }
+      //   break;
+
+      //TO DO: Task 4
+      case C('H'):
+        consputc('\n');
+        break;
+
+      case 0xE04B:  // Left Arrow Key
+        if (input.e > input.w && select_e > input.w) {
+          select_e--;
+          if (copy_mode){
+            selected_buffer[select_in++] = input.buf[select_e % INPUT_BUF];
+          }
+        }
+        break;
+
+      case C('C'):
+        if (!copy_mode)
+        {
+          copy_mode = 1 ;
+          select_in = 0 ;
+        } else {
+          copy_mode = 0;
+          reverse_buff();
+        }
+        break;
+      
+      case C('V'):
+        int i=0;
+        while(reversed_buffer[i] != '\0'){
+          input.buf[input.e++ % INPUT_BUF] = reversed_buffer[i];
+          consputc(reversed_buffer[i]);
+          select_e = input.e ;
+          i++;
+        }
+        break;
+      
+      case C('E'):
+        if (!stat) {
+          stat = 1 ;
+          attribute = 0x7100 ;
+        } else {
+          stat = 0 ;
+          attribute = 0x0700;
+        }
+        break;
+
+      default:
+        if (c != 0 && input.e - input.r < INPUT_BUF) {
+          c = (c == '\r') ? '\n' : c;
+          input.buf[input.e++ % INPUT_BUF] = c;
+          consputc(c);
+          select_e = input.e ;
+
+          if (c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF) {
+            input.w = input.e;
+            wakeup(&input.r);
+          }
+        }
+        break;
     }
   }
+
   release(&cons.lock);
-  if(doprocdump) {
-    procdump();  // now call procdump() wo. cons.lock held
+  if (doprocdump) {
+    procdump();  // Now call procdump() without holding cons.lock
   }
 }
 

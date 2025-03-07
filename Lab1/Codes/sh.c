@@ -166,6 +166,7 @@ char* process_input(char* buf) {
     i++;
   }
 
+  cleaned_input[j] = '\0';
   return cleaned_input;
 }
 
@@ -200,6 +201,7 @@ void print_special(char* cleaned_string) {
       for (int k = 0; k < NUM_KEYWORDS; k++) {
         if (strcmp(temp_word, keywords[k]) == 0) {
           keyword_found = 1;
+          // printf(1,"%s",keywords[k]);
           color_print(keywords[k]);
           break;
         }
@@ -207,9 +209,6 @@ void print_special(char* cleaned_string) {
           
       if (!keyword_found) {
         printf(1,"%s",temp_word);
-        // for (int k = 0; temp_word[k] != '\0'; k++) {
-        //   colorconsputc(temp_word[k]);        
-        // }
       }
 
     } else {
