@@ -16,10 +16,38 @@
 #include "x86.h"
 
 #define INPUT_BUF 128
+#define HISTORY_BUF 12
 
+struct
+{
+  char buf[INPUT_BUF];
+  char history[HISTORY_BUF][INPUT_BUF];
+  int last_line_count;
+  int history_line;
+  uint r; 
+  uint w;
+  uint e;
+  int newline_pos;
+  int end_pos;
+  int current_pos;
+  int is_press_ctrl_s;
+  int index_of_ctrl_s;
+} input;
 
+#define C(x) ((x) - '@') // Control-x
+
+#define ALL_OUTPUT 0
+#define DEVICE_SCREEN 1
+#define HOST_TERMINAL 2
+
+static char selected_buffer[INPUT_BUF];
+static char reversed_buffer[INPUT_BUF];
+uint select_in;
+uint select_e;
+
+void putc(int c, int output);
 static void consputc(int);
-
+static void cgaputc(int c);
 static int panicked = 0;
 
 static struct {
@@ -111,6 +139,88 @@ cprintf(char *fmt, ...)
     release(&cons.lock);
 }
 
+void write_repeated(int count, int character, int output)
+{
+  for (int i = 0; i < count; i++)
+    putc(character, output);
+}
+
+void putc(int c, int output)
+{
+  if (output == ALL_OUTPUT)
+    consputc(c);
+  else if (output == DEVICE_SCREEN)
+    cgaputc(c);
+}
+
+void print_row_index(int index)
+{
+  write_repeated(3, ' ', ALL_OUTPUT);
+  printint(index, 10, 0);
+  write_repeated(2, ' ', ALL_OUTPUT);
+}
+
+void print_str_without_buffering(char *str, int output)
+{
+  for (int i = 0; i < INPUT_BUF; i++)
+  {
+    if (str[i] == '\0')
+      return;
+    putc(str[i], output);
+  }
+}
+
+void show_last_five_commands()
+{
+  int count = 5;
+  if (count > input.last_line_count)
+    count = input.last_line_count;
+  
+  putc('\n', ALL_OUTPUT);
+  for (int i = 0; i <= count; i++)
+  {
+    print_row_index(i);
+    print_str_without_buffering(input.history[i], ALL_OUTPUT);
+    putc('\n', ALL_OUTPUT);
+  }
+  putc('$', ALL_OUTPUT);
+  putc(' ', ALL_OUTPUT);
+}
+
+int should_exclude_from_history(char *cmd) {
+  return cmd[0] == '!';
+}
+
+void handle_tab_completion() {
+  char current_input[INPUT_BUF];
+  int current_len = 0;
+  
+  for (int i = input.w; i < input.e; i++) {
+    current_input[current_len++] = input.buf[i % INPUT_BUF];
+  }
+  current_input[current_len] = '\0';
+  
+  if (current_len == 0)
+    return;
+  
+  char *match = 0;
+  for (int i = 0; i < input.last_line_count; i++) {
+    if (strncmp(input.history[i], current_input, current_len) == 0) {
+      match = input.history[i];
+      break;
+    }
+  }
+  
+  if (match == 0)
+    return;
+  
+  int match_len = strlen(match);
+  for (int i = current_len; i < match_len; i++) {
+    input.buf[input.e++ % INPUT_BUF] = match[i];
+    consputc(match[i]);
+    select_e = input.e;
+  }
+}
 
 void
 panic(char *s)
@@ -136,14 +246,6 @@ panic(char *s)
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
-
-struct {
-  char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-} input;
-
 static int attribute = 0x0700;
 static int stat = 0 ;
 
@@ -230,6 +332,33 @@ void reverse_buff(){
   
 }
 
+void store_command_in_history() {
+  if (input.e > input.w) {
+    char current_cmd[INPUT_BUF];
+    int cmd_len = 0;
+    
+    for (int i = input.w; i < input.e && input.buf[i % INPUT_BUF] != '\n'; i++) {
+      current_cmd[cmd_len++] = input.buf[i % INPUT_BUF];
+    }
+    current_cmd[cmd_len] = '\0';
+    
+    if (should_exclude_from_history(current_cmd))
+      return;
+    
+    for (int i = HISTORY_BUF-1; i > 0; i--) {
+      memmove(input.history[i], input.history[i-1], INPUT_BUF);
+    }
+  
+    int j = 0;
+    for (int i = input.w; i < input.e && input.buf[i % INPUT_BUF] != '\n'; i++) {
+      input.history[0][j++] = input.buf[i % INPUT_BUF];
+    }
+    input.history[0][j] = '\0';
+
+    if (input.last_line_count < HISTORY_BUF)
+      input.last_line_count++;
+  }
+}
 
 void consoleintr(int (*getc)(void)) {
   int c, doprocdump = 0;
@@ -260,7 +389,11 @@ void consoleintr(int (*getc)(void)) {
 
       //TO DO: Task 4
       case C('H'):
-        consputc('\n');
+        show_last_five_commands();
+        break;
+
+      case '\t':  // Tab key for completion
+        handle_tab_completion();
         break;
 
       case 0xE04B:  // Left Arrow Key
@@ -311,6 +444,9 @@ void consoleintr(int (*getc)(void)) {
           select_e = input.e ;
 
           if (c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF) {
+            if (c == '\n') {
+              store_command_in_history();
+            }
             input.w = input.e;
             wakeup(&input.r);
           }
