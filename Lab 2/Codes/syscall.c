@@ -103,6 +103,10 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_make_user(void);
+extern int sys_login(void);
+extern int sys_logout(void);
+extern int sys_get_log(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -126,6 +130,11 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+// I added:
+[SYS_make_user] sys_make_user,
+[SYS_login]     sys_login,
+[SYS_logout]    sys_logout,
+[SYS_get_log]   sys_get_log,
 };
 
 void
@@ -136,6 +145,10 @@ syscall(void)
 
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    
+    // Ive added this line which logs each systemcall:
+    log_syscall(num);
+
     curproc->tf->eax = syscalls[num]();
   } else {
     cprintf("%d %s: unknown sys call %d\n",

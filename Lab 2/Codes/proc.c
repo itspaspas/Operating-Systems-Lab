@@ -75,6 +75,7 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
+  
 
   acquire(&ptable.lock);
 
@@ -88,6 +89,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->logged_in_user = -1;
 
   release(&ptable.lock);
 
@@ -120,6 +122,7 @@ found:
 void
 userinit(void)
 {
+  cprintf("hehe");
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
@@ -146,11 +149,14 @@ userinit(void)
   // run this process. the acquire forces the above
   // writes to be visible, and the lock is also needed
   // because the assignment might not be atomic.
+
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
 
   release(&ptable.lock);
+  // I added:
+  userinit_extra();
 }
 
 // Grow current process's memory by n bytes.

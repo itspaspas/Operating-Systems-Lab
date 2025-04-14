@@ -24,6 +24,12 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
+// I added:
+int make_user(int user_id, char* password);
+int login_user(int user_id, char* password);
+int logout_user(void);
+int get_log(void);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

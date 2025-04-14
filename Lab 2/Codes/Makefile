@@ -3,6 +3,7 @@ OBJS = \
 	console.o\
 	exec.o\
 	file.o\
+	user.o\
 	fs.o\
 	ide.o\
 	ioapic.o\
@@ -182,6 +183,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_brace_check\
+	_make_user_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

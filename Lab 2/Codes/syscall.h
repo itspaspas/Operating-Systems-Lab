@@ -20,3 +20,9 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+// I added:
+#define SYS_make_user 22
+#define SYS_login     23
+#define SYS_logout    24
+#define SYS_get_log   25

@@ -1,3 +1,18 @@
+#define MAX_USERS 16
+#define MAX_PASSWORD_LEN 32
+#define MAX_LOG_ENTRIES 50
+
+struct user {
+  int user_id;
+  char password[MAX_PASSWORD_LEN];
+  int valid; // 1 if this user slot is in use
+};
+
+struct syscall_log {
+  int syscall_num;
+  int pid;
+};
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -49,6 +64,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int logged_in_user;           // if no ones logged in, value is -1
 };
 
 // Process memory is laid out contiguously, low addresses first:
