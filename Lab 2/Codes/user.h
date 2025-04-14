@@ -29,6 +29,9 @@ int make_user(int user_id, char* password);
 int login_user(int user_id, char* password);
 int logout_user(void);
 int get_log(void);
+int diff(const char* file1, const char* file2);
+int set_sleep(int);
+int getcmostime(struct rtcdate*);
 
 // ulib.c
 int stat(const char*, struct stat*);

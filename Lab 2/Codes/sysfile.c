@@ -442,3 +442,173 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int
+sys_diff(void)
+{
+  char *file1, *file2;
+  struct file *f1, *f2;
+  struct inode *ip1, *ip2;
+  char buf1[512], buf2[512];
+  int line, diff_found;
+  
+  // Get the two file names as arguments
+  if(argstr(0, &file1) < 0 || argstr(1, &file2) < 0)
+    return -1;
+  
+  // Open the first file
+  begin_op();
+  if((ip1 = namei(file1)) == 0){
+    end_op();
+    cprintf("diff: cannot open %s\n", file1);
+    return -1;
+  }
+  
+  ilock(ip1);
+  if(ip1->type == T_DIR){
+    iunlockput(ip1);
+    end_op();
+    cprintf("diff: %s is a directory\n", file1);
+    return -1;
+  }
+  iunlock(ip1);
+  
+  if((f1 = filealloc()) == 0){
+    iput(ip1);
+    end_op();
+    return -1;
+  }
+  
+  // Initialize the first file
+  f1->type = FD_INODE;
+  f1->ip = ip1;
+  f1->off = 0;
+  f1->readable = 1;
+  f1->writable = 0;
+  
+  // Open the second file
+  if((ip2 = namei(file2)) == 0){
+    fileclose(f1);
+    end_op();
+    cprintf("diff: cannot open %s\n", file2);
+    return -1;
+  }
+  
+  ilock(ip2);
+  if(ip2->type == T_DIR){
+    iunlockput(ip2);
+    fileclose(f1);
+    end_op();
+    cprintf("diff: %s is a directory\n", file2);
+    return -1;
+  }
+  iunlock(ip2);
+  
+  if((f2 = filealloc()) == 0){
+    fileclose(f1);
+    iput(ip2);
+    end_op();
+    return -1;
+  }
+  
+  // Initialize the second file
+  f2->type = FD_INODE;
+  f2->ip = ip2;
+  f2->off = 0;
+  f2->readable = 1;
+  f2->writable = 0;
+  
+  end_op();
+  
+  // Compare the files line by line
+  line = 1;
+  diff_found = 0;
+  char *p1, *p2;
+  int i1, i2;
+  int eof1 = 0, eof2 = 0;
+  
+  while(!eof1 || !eof2){
+    // Read a line from the first file
+    p1 = buf1;
+    i1 = 0;
+    
+    if(!eof1){
+      while(i1 < sizeof(buf1) - 1){
+        if(fileread(f1, p1, 1) != 1){
+          eof1 = 1;
+          break;
+        }
+        if(*p1 == '\n'){
+          p1++;
+          i1++;
+          break;
+        }
+        p1++;
+        i1++;
+      }
+    } else {
+      i1 = 0;
+    }
+    
+    // Read a line from the second file
+    p2 = buf2;
+    i2 = 0;
+    
+    if(!eof2){
+      while(i2 < sizeof(buf2) - 1){
+        if(fileread(f2, p2, 1) != 1){
+          eof2 = 1;
+          break;
+        }
+        if(*p2 == '\n'){
+          p2++;
+          i2++;
+          break;
+        }
+        p2++;
+        i2++;
+      }
+    } else {
+      i2 = 0;
+    }
+    
+    // End of both files
+    if(i1 == 0 && i2 == 0)
+      break;
+    
+    // Compare the lines
+    if(i1 != i2 || memcmp(buf1, buf2, i1 < i2 ? i1 : i2) != 0){
+      diff_found = 1;
+      cprintf("Line %d: files differ\n", line);
+      
+      // Add null terminator for printing
+      buf1[i1] = '\0';
+      buf2[i2] = '\0';
+      
+      cprintf("< %s", buf1);
+      if(i1 > 0 && buf1[i1-1] != '\n')
+        cprintf("\n");
+      
+      cprintf("> %s", buf2);
+      if(i2 > 0 && buf2[i2-1] != '\n')
+        cprintf("\n");
+    }
+    
+    line++;
+  }
+  
+  // If one file has more content than the other
+  if(eof1 && !eof2){
+    diff_found = 1;
+    cprintf("File %s has more lines\n", file2);
+  } else if(!eof1 && eof2){
+    diff_found = 1;
+    cprintf("File %s has more lines\n", file1);
+  }
+  
+  // Close the files
+  fileclose(f1);
+  fileclose(f2);
+  
+  return diff_found ? -1 : 0;
+}

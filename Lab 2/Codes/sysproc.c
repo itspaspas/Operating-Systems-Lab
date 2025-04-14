@@ -89,3 +89,43 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_set_sleep(void)
+{
+  int n;
+  uint ticks0;
+  
+  if(argint(0, &n) < 0)
+    return -1;
+  
+  // Proper implementation that avoids using the existing sleep function
+  // but still uses the correct synchronization primitives
+  acquire(&tickslock);
+  ticks0 = ticks;
+  
+  while(ticks - ticks0 < n){
+    if(myproc()->killed){
+      release(&tickslock);
+      return -1;
+    }
+    
+    // Use the proper sleep primitive instead of directly manipulating process state
+    sleep(&ticks, &tickslock);
+  }
+  
+  release(&tickslock);
+  return 0;
+}
+
+int
+sys_getcmostime(void)
+{
+  struct rtcdate *r;
+  
+  if(argptr(0, (char**)&r, sizeof(*r)) < 0)
+    return -1;
+  
+  cmostime(r);
+  return 0;
+}

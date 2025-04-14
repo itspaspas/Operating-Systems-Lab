@@ -107,6 +107,9 @@ extern int sys_make_user(void);
 extern int sys_login(void);
 extern int sys_logout(void);
 extern int sys_get_log(void);
+extern int sys_diff(void);
+extern int sys_set_sleep(void);
+extern int sys_getcmostime(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -135,6 +138,9 @@ static int (*syscalls[])(void) = {
 [SYS_login]     sys_login,
 [SYS_logout]    sys_logout,
 [SYS_get_log]   sys_get_log,
+[SYS_diff]      sys_diff,
+[SYS_set_sleep] sys_set_sleep,
+[SYS_getcmostime] sys_getcmostime,
 };
 
 void

@@ -184,6 +184,10 @@ UPROGS=\
 	_zombie\
 	_brace_check\
 	_make_user_test\
+	_difftest\
+	_sleep_test\
+	_cmos_test\
+	_long_sleep_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

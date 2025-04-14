@@ -26,3 +26,6 @@
 #define SYS_login     23
 #define SYS_logout    24
 #define SYS_get_log   25
+#define SYS_diff      26
+#define SYS_set_sleep 27
+#define SYS_getcmostime 28
