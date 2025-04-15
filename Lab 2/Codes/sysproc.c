@@ -129,3 +129,28 @@ sys_getcmostime(void)
   cmostime(r);
   return 0;
 }
+
+int
+next_palindrome(int num)
+{
+    num++;
+    while (1) {
+        int reversed = 0, original = num;
+        while (original > 0) {
+            reversed = reversed * 10 + original % 10;
+            original /= 10;
+        }
+        if (reversed == num)
+            return num;
+        num++;
+    }
+}
+
+int
+sys_next_palindrome(void)
+{
+    int num;
+    if (argint(0, &num) < 0)
+        return -1;
+    return next_palindrome(num);
+}
