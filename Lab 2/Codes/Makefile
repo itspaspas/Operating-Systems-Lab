@@ -188,6 +188,8 @@ UPROGS=\
 	_sleep_test\
 	_cmos_test\
 	_long_sleep_test\
+	_getpid_test\
+	_next_palindrome_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

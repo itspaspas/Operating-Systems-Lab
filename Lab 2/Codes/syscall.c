@@ -110,6 +110,7 @@ extern int sys_get_log(void);
 extern int sys_diff(void);
 extern int sys_set_sleep(void);
 extern int sys_getcmostime(void);
+extern int sys_next_palindrome(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -141,6 +142,7 @@ static int (*syscalls[])(void) = {
 [SYS_diff]      sys_diff,
 [SYS_set_sleep] sys_set_sleep,
 [SYS_getcmostime] sys_getcmostime,
+[SYS_next_palindrome] sys_next_palindrome,
 };
 
 void
@@ -151,11 +153,12 @@ syscall(void)
 
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    
-    // Ive added this line which logs each systemcall:
-    log_syscall(num);
-
     curproc->tf->eax = syscalls[num]();
+
+    // Ive added this line which logs each systemcall:
+    if(num != SYS_write)
+      log_syscall(num);
+
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);

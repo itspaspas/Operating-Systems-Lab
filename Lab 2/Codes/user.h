@@ -32,6 +32,7 @@ int get_log(void);
 int diff(const char* file1, const char* file2);
 int set_sleep(int);
 int getcmostime(struct rtcdate*);
+int next_palindrome(int num);
 
 // ulib.c
 int stat(const char*, struct stat*);

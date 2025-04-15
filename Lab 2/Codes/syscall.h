@@ -29,3 +29,4 @@
 #define SYS_diff      26
 #define SYS_set_sleep 27
 #define SYS_getcmostime 28
+#define SYS_next_palindrome 29
