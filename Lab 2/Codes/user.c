@@ -6,10 +6,11 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "syscall.h"
 
 struct user users[MAX_USERS];
 struct syscall_log syscall_logs[MAX_USERS][MAX_LOG_ENTRIES];
-int log_indices[MAX_USERS]; // Tracks the current position in each user's log
+int log_indices[MAX_USERS]; // Tracks the current position in each users log
 int global_log[MAX_LOG_ENTRIES]; // For when no user is logged in
 int global_log_index = 0;
 struct spinlock user_lock;
@@ -25,7 +26,6 @@ userinit_extra(void)
   }
 }
 
-// Check if a user ID exists
 int
 find_user(int user_id)
 {
@@ -36,33 +36,28 @@ find_user(int user_id)
   return -1;
 }
 
-// Add a new user to the system
 int
 make_user(int user_id, const char* password)
 {
   int i;
   
   acquire(&user_lock);
-  
-  // Check if user ID already exists
+
   if(find_user(user_id) >= 0) {
     release(&user_lock);
     return -1;
   }
-  
-  // Find empty slot
+
   for(i = 0; i < MAX_USERS; i++) {
     if(users[i].valid == 0)
       break;
   }
   
   if(i == MAX_USERS) {
-    // No more slots available
     release(&user_lock);
     return -1;
   }
   
-  // Create the new user
   users[i].user_id = user_id;
   strncpy(users[i].password, password, MAX_PASSWORD_LEN-1);
   users[i].password[MAX_PASSWORD_LEN-1] = '\0';
@@ -73,7 +68,6 @@ make_user(int user_id, const char* password)
   return 0;
 }
 
-// Login a user
 int
 login_user(int user_id, const char* password)
 {
@@ -82,33 +76,28 @@ login_user(int user_id, const char* password)
   
   acquire(&user_lock);
   
-  // Find the user
   user_index = find_user(user_id);
   if(user_index < 0) {
     release(&user_lock);
     return -1;
   }
-  
-  // Check password
+
   if(strncmp(users[user_index].password, password, MAX_PASSWORD_LEN) != 0) {
     release(&user_lock);
     return -1;
   }
   
-  // Only allow login if not already logged in
   if(p->logged_in_user != -1) {
     release(&user_lock);
     return -1;
   }
-  
-  // Login the user
+
   p->logged_in_user = user_id;
   
   release(&user_lock);
   return 0;
 }
 
-// Logout current user
 int
 logout_user(void)
 {
@@ -121,15 +110,20 @@ logout_user(void)
     release(&user_lock);
     return -1;
   }
+
+  int user_index = find_user(p->logged_in_user);
+  if(user_index >= 0) {
+    syscall_logs[user_index][log_indices[user_index]].syscall_num = SYS_logout;
+    syscall_logs[user_index][log_indices[user_index]].pid = 1;
+    log_indices[user_index] = (log_indices[user_index] + 1) % MAX_LOG_ENTRIES;
+  }
   
-  // Logout
   p->logged_in_user = -1;
   
   release(&user_lock);
   return 0;
 }
 
-// Log a system call
 void
 log_syscall(int num)
 {
@@ -139,23 +133,20 @@ log_syscall(int num)
   acquire(&user_lock);
   
   if(p->logged_in_user != -1) {
-    // User is logged in, log to their specific log
     user_index = find_user(p->logged_in_user);
     if(user_index >= 0) {
       syscall_logs[user_index][log_indices[user_index]].syscall_num = num;
-      syscall_logs[user_index][log_indices[user_index]].pid = p->pid;
+      syscall_logs[user_index][log_indices[user_index]].pid = 1;
       log_indices[user_index] = (log_indices[user_index] + 1) % MAX_LOG_ENTRIES;
     }
   }
-  
-  // Always log to global log
+
   global_log[global_log_index] = num;
   global_log_index = (global_log_index + 1) % MAX_LOG_ENTRIES;
   
   release(&user_lock);
 }
 
-// Get system call logs
 int
 get_log(void)
 {
@@ -166,21 +157,19 @@ get_log(void)
   acquire(&user_lock);
   
   if(p->logged_in_user != -1) {
-    // Show logs for the current logged-in user
+
     user_index = find_user(p->logged_in_user);
     if(user_index >= 0) {
       cprintf("System call log for user %d:\n", p->logged_in_user);
       for(i = 0; i < MAX_LOG_ENTRIES; i++) {
         int idx = (log_indices[user_index] - i - 1 + MAX_LOG_ENTRIES) % MAX_LOG_ENTRIES;
-        if(syscall_logs[user_index][idx].pid != 0) {
-          cprintf("SysCall: %d, PID: %d\n", 
-                 syscall_logs[user_index][idx].syscall_num,
-                 syscall_logs[user_index][idx].pid);
+        if(syscall_logs[user_index][idx].syscall_num != 0) {
+          cprintf("SysCall: %d\n", syscall_logs[user_index][idx].syscall_num);
         }
       }
     }
   } else {
-    // Show logs for all users
+
     cprintf("Global system call log:\n");
     for(i = 0; i < MAX_LOG_ENTRIES; i++) {
       int idx = (global_log_index - i - 1 + MAX_LOG_ENTRIES) % MAX_LOG_ENTRIES;

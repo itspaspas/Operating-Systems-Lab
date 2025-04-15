@@ -153,11 +153,12 @@ syscall(void)
 
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    
-    // Ive added this line which logs each systemcall:
-    log_syscall(num);
-
     curproc->tf->eax = syscalls[num]();
+
+    // Ive added this line which logs each systemcall:
+    if(num != SYS_write)
+      log_syscall(num);
+
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);
