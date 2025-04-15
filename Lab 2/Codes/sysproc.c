@@ -6,6 +6,13 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
+
+// This is borrowed from proc.c to access ptable
+extern struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
 
 int
 sys_fork(void)
@@ -95,23 +102,50 @@ sys_set_sleep(void)
 {
   int n;
   uint ticks0;
+  struct proc *p = myproc();
   
   if(argint(0, &n) < 0)
     return -1;
   
-  // Proper implementation that avoids using the existing sleep function
-  // but still uses the correct synchronization primitives
   acquire(&tickslock);
   ticks0 = ticks;
   
   while(ticks - ticks0 < n){
-    if(myproc()->killed){
+    if(p->killed){
       release(&tickslock);
       return -1;
     }
     
-    // Use the proper sleep primitive instead of directly manipulating process state
-    sleep(&ticks, &tickslock);
+    // We need to release tickslock before acquiring ptable.lock to avoid deadlock
+    release(&tickslock);
+    
+    // Acquire ptable.lock before changing process state
+    acquire(&ptable.lock);
+    
+    // Check if we need to sleep again - reacquire tickslock to check
+    acquire(&tickslock);
+    if(ticks - ticks0 >= n){
+      // Time has elapsed while we were acquiring locks
+      release(&tickslock);
+      release(&ptable.lock);
+      break;
+    }
+    
+    // Mark process as sleeping on ticks
+    p->chan = &ticks;
+    p->state = SLEEPING;
+    
+    // Release tickslock before calling scheduler
+    release(&tickslock);
+    
+    // Now we only hold ptable.lock as required by sched()
+    sched();
+    
+    // When we return from scheduler, we need to reacquire tickslock
+    acquire(&tickslock);
+    
+    // Release ptable.lock since we're done with it
+    release(&ptable.lock);
   }
   
   release(&tickslock);
