@@ -200,3 +200,4 @@ zombie.asm
 zombie.d
 zombie.o
 zombie.sym
+.gdbinit
